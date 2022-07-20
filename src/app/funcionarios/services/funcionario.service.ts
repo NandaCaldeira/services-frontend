@@ -3,26 +3,32 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, map, mergeMap, Observable, tap } from 'rxjs';
 import { Funcionario } from '../models/funcionario';
 import { AngularFireStorage } from '@angular/fire/compat/storage'; // importação do fireStorage
+import { AuthService } from 'src/app/auth/services/auth.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class FuncionarioService {
 
-  private readonly baseUrl: string = 'http://localhost:3000/funcionarios'
+  private readonly baseUrl: string = 'http://localhost:8080/servicos/funcionarios'
   atualizarFuncionariosSub$: BehaviorSubject<boolean> = new BehaviorSubject(true)
 
   constructor(
     private http: HttpClient,
-    private storage: AngularFireStorage // objeto responsável por salvar os arquivos no firebase
+    private storage: AngularFireStorage, // objeto responsável por salvar os arquivos no firebase
+    private authService: AuthService
   ) { }
 
   getFuncionarios(): Observable<Funcionario[]> {
+
+    // Bearer token
     return this.http.get<Funcionario[]>(this.baseUrl)
   }
 
   // http://localhost:3000/funcionarios/
   deleteFuncionario(func: Funcionario): Observable<any> {
+    const token = this.authService.recuperarToken()
+
     // se não tiver foto, apenas será deletado o email e nome
     if (func.foto.length > 0) {
       //1° pegar a referência da imagem no fireStorage
@@ -37,16 +43,24 @@ export class FuncionarioService {
            * mergeMap tem a função de pegar dois ou mais observables e transformar todos
            * em um só
            */
-          return this.http.delete<any>(`${this.baseUrl}/${func.id}`)
+          return this.http.delete<any>(`${this.baseUrl}/${func.idFuncionario}`, {
+
+          })
         })
       )
     }
 
-    return this.http.delete<any>(`${this.baseUrl}/${func.id}`)
+    return this.http.delete<any>(`${this.baseUrl}/${func.idFuncionario}`, {
+
+    })
   }
 
   getFuncionarioById(id: number): Observable<Funcionario> {
-    return this.http.get<Funcionario>(`${this.baseUrl}/${id}`)
+    const token = this.authService.recuperarToken()
+
+    return this.http.get<Funcionario>(`${this.baseUrl}/${id}`, {
+
+    })
   }
 
   /**
@@ -95,7 +109,7 @@ export class FuncionarioService {
 
     // se a foto não foi passada, atualizar apenas com os dados básicos
     if (foto == undefined) {
-      return this.http.put<Funcionario>(`${this.baseUrl}/${func.id}`, func)
+      return this.http.put<Funcionario>(`${this.baseUrl}/${func.idFuncionario}`, func)
       .pipe(
         tap((funcionario) => {
           this.atualizarFuncionariosSub$.next(true)
@@ -114,7 +128,7 @@ export class FuncionarioService {
       )
     }
 
-    return this.http.put<Funcionario>(`${this.baseUrl}/${func.id}`, func).pipe(
+    return this.http.put<Funcionario>(`${this.baseUrl}/${func.idFuncionario}`, func).pipe(
       mergeMap(async (funcionarioAtualizado) => {
         const linkFotoFirebase = await this.uploadImagem(foto)
 
